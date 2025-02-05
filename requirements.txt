@@ -2,3 +2,5 @@ fastapi==0.115.7
 uvicorn==0.34.0
 requests==2.31.0 
 python-multipart
+slack-sdk==3.21.3
+python-dotenv==1.0.0
