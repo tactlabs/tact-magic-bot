@@ -84,13 +84,11 @@ async def handle_tm_command(
     user_id: str = Form(...),  # User who triggered the command
     response_url: str = Form(...),  # Response URL
 ):
-    # Build the response text
-    response_text = f"Hello <@{user_id}>, you said: {text}"
+    
 
-    # Send the response to Slack using the response_url
     payload = {
-        "response_type": "in_channel",  # or "ephemeral"
-        "text": response_text
+        "response_type": "in_channel",  # Ensure this is set to "in_channel"
+        "text": f"Hello <@{user_id}>, you said: {text}"
     }
 
     # Send the response to Slack
