@@ -8,6 +8,8 @@ from slack_sdk.signature import SignatureVerifier
 from fastapi import FastAPI, HTTPException, Query, Header
 
 from pydantic import BaseModel
+from fastapi import FastAPI, Form
+import requests
 import os
 
 import os
@@ -32,13 +34,13 @@ async def send_to_vercel(content: str):
         return response.json()
 
 
-class SlackCommand(BaseModel):
-    token: str
-    command: str
-    text: str
-    response_url: str
-    user_id: str
-    channel_id: str
+# class SlackCommand(BaseModel):
+#     token: str
+#     command: str
+#     text: str
+#     response_url: str
+#     user_id: str
+#     channel_id: str
     
 
 
@@ -77,42 +79,24 @@ async def handle_tm_command(request: Request):
 
 
 @app.post("/slack/tm")
-async def handle_tm_command(request: Request):
-    form_data = await request.form()
-    command = SlackCommand(
-        token=form_data.get("token"),
-        command=form_data.get("command"),
-        text=form_data.get("text"),
-        response_url=form_data.get("response_url"),
-        user_id=form_data.get("user_id"),
-        channel_id=form_data.get("channel_id"),
-    )
+async def handle_tm_command(
+    text: str = Form(...),  # Get the command text
+    user_id: str = Form(...),  # User who triggered the command
+    response_url: str = Form(...),  # Response URL
+):
+    # Build the response text
+    response_text = f"Hello <@{user_id}>, you said: {text}"
 
-    # Verify the token (optional but recommended for security)
-    if command.token != "SLACK_BOT_TOKEN":
-        raise HTTPException(status_code=403, detail="Invalid token")
-
-    # Process the command
-    response_text = command.text
-
-    # If the text is empty, check for multi-line input
-    if not response_text:
-        body = await request.body()
-        body_str = body.decode("utf-8")
-        # Parse the body to extract multi-line content
-        # Example: Look for lines before "/tm"
-        lines = body_str.splitlines()
-        for i, line in enumerate(lines):
-            if "/tm" in line:
-                response_text = "\n".join(lines[:i])
-                break
-
-    # Return the response to Slack
-    return {
-        "response_type": "in_channel",
-        "text": response_text,
+    # Send the response to Slack using the response_url
+    payload = {
+        "response_type": "in_channel",  # or "ephemeral"
+        "text": response_text
     }
 
+    # Send the response to Slack
+    requests.post(response_url, json=payload)
+
+    return {"status": "ok"}
 
 
 
