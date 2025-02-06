@@ -5,12 +5,14 @@ import os
 import httpx
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 app = FastAPI()
 slack_client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))
 signature_verifier = SignatureVerifier(os.getenv("SLACK_SIGNING_SECRET"))
 vercel_api_url = os.getenv("VERCEL_API_URL")  # Add your Vercel API URL in .env
+
 
 async def send_to_vercel(content: str):
     async with httpx.AsyncClient() as client:
