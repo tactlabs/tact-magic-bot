@@ -1,10 +1,14 @@
 
 from fastapi import FastAPI, Request, HTTPException
+
 from slack_sdk import WebClient
 from slack_sdk.signature import SignatureVerifier
 
 
 from fastapi import FastAPI, HTTPException, Query, Header
+
+from pydantic import BaseModel
+import os
 
 import os
 import httpx
@@ -20,11 +24,22 @@ vercel_api_url = os.getenv("VERCEL_API_URL")  # Add your Vercel API URL in .env
 
 
 
+
 async def send_to_vercel(content: str):
     async with httpx.AsyncClient() as client:
         response = await client.post(vercel_api_url, json={"content": content})
         response.raise_for_status()
         return response.json()
+
+
+class SlackCommand(BaseModel):
+    token: str
+    command: str
+    text: str
+    response_url: str
+    user_id: str
+    channel_id: str
+    
 
 
 @app.get("/")
@@ -61,24 +76,38 @@ async def handle_tm_command(request: Request):
 
 
 
-@app.get("/slack/tm")
-async def handle_tm_command(
-    text: str = Query(..., description="Input content"),
-    authorization: str = Header(None, description="Slack bot token"),
-):
-    # Debug: Print the received Authorization header
-    print(f"Received Authorization header: {authorization}")
+@app.post("/slack/tm")
+async def handle_tm_command(request: Request):
+    form_data = await request.form()
+    command = SlackCommand(
+        token=form_data.get("token"),
+        command=form_data.get("command"),
+        text=form_data.get("text"),
+        response_url=form_data.get("response_url"),
+        user_id=form_data.get("user_id"),
+        channel_id=form_data.get("channel_id"),
+    )
 
-    # Verify the Slack bot token
-    expected_token = f"Bearer {SLACK_BOT_TOKEN}"
-    if authorization != expected_token:
-        print(f"Expected: {expected_token}, Received: {authorization}")
-        raise HTTPException(status_code=403, detail="Invalid Slack bot token")
+    # Verify the token (optional but recommended for security)
+    if command.token != "SLACK_BOT_TOKEN":
+        raise HTTPException(status_code=403, detail="Invalid token")
 
-    # Process the input content
-    response_text = text.replace("\\n", "\n")  # Replace escaped newlines with actual newlines
+    # Process the command
+    response_text = command.text
 
-    # Return the response
+    # If the text is empty, check for multi-line input
+    if not response_text:
+        body = await request.body()
+        body_str = body.decode("utf-8")
+        # Parse the body to extract multi-line content
+        # Example: Look for lines before "/tm"
+        lines = body_str.splitlines()
+        for i, line in enumerate(lines):
+            if "/tm" in line:
+                response_text = "\n".join(lines[:i])
+                break
+
+    # Return the response to Slack
     return {
         "response_type": "in_channel",
         "text": response_text,
