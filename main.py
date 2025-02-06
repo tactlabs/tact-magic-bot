@@ -1,6 +1,11 @@
+
 from fastapi import FastAPI, Request, HTTPException
 from slack_sdk import WebClient
 from slack_sdk.signature import SignatureVerifier
+
+
+from fastapi import FastAPI, HTTPException, Query, Header
+
 import os
 import httpx
 from dotenv import load_dotenv
@@ -25,6 +30,7 @@ async def send_to_vercel(content: str):
 @app.get("/")
 async def root():
     return {"message": "Tact Magic API is running!"}
+
 
 @app.post("/slack/tm")
 async def handle_tm_command(request: Request):
@@ -52,6 +58,35 @@ async def handle_tm_command(request: Request):
     # Send a response to Slack
     slack_client.chat_postMessage(channel=channel_id, text=response_text)
     return {"response_type": "in_channel", "text": response_text}
+
+
+
+@app.get("/slack/tm")
+async def handle_tm_command(
+    text: str = Query(..., description="Input content"),
+    authorization: str = Header(None, description="Slack bot token"),
+):
+    # Debug: Print the received Authorization header
+    print(f"Received Authorization header: {authorization}")
+
+    # Verify the Slack bot token
+    expected_token = f"Bearer {SLACK_BOT_TOKEN}"
+    if authorization != expected_token:
+        print(f"Expected: {expected_token}, Received: {authorization}")
+        raise HTTPException(status_code=403, detail="Invalid Slack bot token")
+
+    # Process the input content
+    response_text = text.replace("\\n", "\n")  # Replace escaped newlines with actual newlines
+
+    # Return the response
+    return {
+        "response_type": "in_channel",
+        "text": response_text,
+    }
+
+
+
+
 
 if __name__ == "__main__":
     import uvicorn
