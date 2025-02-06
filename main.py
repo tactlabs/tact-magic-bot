@@ -14,11 +14,13 @@ signature_verifier = SignatureVerifier(os.getenv("SLACK_SIGNING_SECRET"))
 vercel_api_url = os.getenv("VERCEL_API_URL")  # Add your Vercel API URL in .env
 
 
+
 async def send_to_vercel(content: str):
     async with httpx.AsyncClient() as client:
         response = await client.post(vercel_api_url, json={"content": content})
         response.raise_for_status()
         return response.json()
+
 
 @app.get("/")
 async def root():
